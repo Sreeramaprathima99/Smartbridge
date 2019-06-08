@@ -1,48 +1,90 @@
 /*
- * Two different sequences with switches.c
+ * LM35 with LCD Switch.c
  *
- * Created: 07-06-2019 10:56:42
+ * Created: 08-06-2019 12:38:44
  * Author : Prathima Sreerama
  */ 
 
-#ifndef F_CPU
-#define F_CPU 16000000UL
-#endif
-
 #include <avr/io.h>
+#define F_CPU 1000000
 #include <util/delay.h>
+#include <stdlib.h>
+
+#define E 5
+#define RS 7
+
+void send_a_command(unsigned char command);
+void send_a_character(unsigned char character);
+void send_a_string(char *string_of_character);
 
 int main(void)
 {
-	int i;
-	DDRD = 0x00;
-	DDRC = 0x01;
+	DDRC=0xFF;
+	DDRA=0x00;
+	DDRD=0xFF;
+	DDRB=0x00;
+	_delay_ms(50);
+	
+	ADMUX|=(1<<REFS0)|(1<<REFS1);
+	
+	ADCSRA|=(1<<ADEN)|(1<<ADATE)|(1<<ADPS0)|(1<<ADPS1)|(1<<ADPS2);
+	
+	int16_t COUNTA=0;
+	char SHOWA[3];
+	send_a_command(0x01);
+	_delay_ms(50);
+	send_a_command(0x38);
+	_delay_ms(50);
+	send_a_command(0b00001111);
+	_delay_ms(50);
+	
+	ADCSRA|=(1<<ADSC);
+	
 	while(1)
-	{		
-		if((PIND & (1<<PD1))==0)
+	{
+		if((PINB & (1<<PB0))==0)
 		{
-			for(i=0;i<=7;)
-			{
-			PORTC|=(1<<i);
-			_delay_ms(220);
-			PORTC &=~(1<<i);
-			_delay_ms(220);
-			i++;
-			}
-		}
-		if((PIND & (1<<PD2))==0)
-			{
-				for(i=7;i>=0;)
-				{
-				PORTC|=(1<<i);
-				_delay_ms(220);
-				PORTC &=~(1<<i);
-				_delay_ms(220);
-				i--;
-				}
-			}
-	}
-	}
-
-
 		
+		COUNTA=ADC/4;
+		send_a_string("Smartbridge");
+		send_a_command(0x80+0x40+0);
+		
+		send_a_string("Temp(C)= ");
+		send_a_command(0x80+0x40+8);
+		
+		itoa(COUNTA,SHOWA,10);
+		send_a_string(SHOWA);
+		send_a_string(" ");
+		send_a_command(0x80+0);
+		}
+	}
+	
+}
+
+void send_a_command(unsigned char command)
+{
+	PORTC=command;
+	PORTD&=~(1<<RS);
+	PORTD|=(1<<E);
+	_delay_ms(50);
+	PORTD&=~(1<<E);
+	PORTC=0;
+}
+
+void send_a_character(unsigned char character)
+{
+	PORTC=character;
+	PORTD|=(1<<RS);
+	PORTD|=(1<<E);
+	_delay_ms(50);
+	PORTD&=~(1<<E);
+	PORTC=0;
+}
+
+void send_a_string(char * string_of_character)
+{
+	while( * string_of_character >0)
+	{
+		send_a_character(*string_of_character++);
+	}
+}
